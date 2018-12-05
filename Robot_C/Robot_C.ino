@@ -1,5 +1,4 @@
-// Wifi
-#include <WiFi.h>
+#include <WiFi.h> // Wifi
 
 const char* ssid     = "Robotica";
 const char* password = "12344321";
@@ -9,99 +8,95 @@ WiFiServer server(80); //Cria o objeto servidor na porta 80
 
 void setup()
 {
-    Serial.begin(115200);//Habilita a comm serial
+  Serial.begin(115200);//Habilita a comm serial
 
-    // Wifi ------------------------------------------------------------------------------
-    WiFi.mode(WIFI_AP);//Define o WiFi como Acess_Point.
-    WiFi.softAP(ssid, password);//Cria a rede de Acess_Point.
-    Serial.println(WiFi.softAPIP());
-    server.begin();//Inicia o servidor TCP na porta declarada no começo.
-    
-    // ----------------------------------------------------------------------------------
-  
-    // Portas tracao ---------------------------------------------------------------------
-    // Frequencia = frequencia do PWM em Hz - pode ser alterada dependendo da resolucao
-    // Resolucao = pode ser alterada de 1 a 16 bits
-    // Canal do PWM =  pode utilizar mais de um canal, para mais de um pino, indo de 0 a 15
-    // ledcSetup =  Porta - Frequencia - Resolucao
+  // Wifi ------------------------------------------------------------------------------
+  WiFi.mode(WIFI_AP);//Define o WiFi como Acess_Point.
+  WiFi.softAP(ssid, password);//Cria a rede de Acess_Point.
+  Serial.println(WiFi.softAPIP());
+  server.begin();//Inicia o servidor TCP na porta declarada no começo.
 
-    // Rigth --------------------------------------------------------------
-    pinMode(27, OUTPUT);  // Saida PWM RY (Ponte H)
-    ledcAttachPin(27, 0); //Atribuimos o pino 34 ao canal 0.
-    
-    //Atribuimos ao canal 0 a frequencia de 1000 Hz com resolucao de 10 bits.
-    ledcSetup(0, 5000, 8); 
+  // ----------------------------------------------------------------------------------
 
-    pinMode(14, OUTPUT); // SAIDA DIGITAL ENABLE RY (Ponte H)
-    pinMode(12, OUTPUT); // SAIDA DIGITAL ENABLE RY (Ponte H)
+  // Portas tracao ---------------------------------------------------------------------
+  // Frequencia do PWM = De 1000Hz a 40000Hz - Calculo da frequencia maxima com a resolucao escolhida, (clock/resolucao) 80.000.000/8 = 10.000.000(Maximo)
+  // Resolucao = De 1 a 16 bits
+  // Canal do PWM =  Pode utilizar mais de um canal, para mais de um pino, indo de 0 a 15
 
-    // Left --------------------------------------------------------------
-    pinMode(33, OUTPUT);  // Saida PWM LY (Ponte H)
-    ledcAttachPin(33, 1); //Atribuimos o pino 33 ao canal 1.
+  // ledcAttachPin(Porta, Canal);
+  // ledcSetup(Porta, Frequencia(Hz), Resolucao);
 
-     //Atribuimos ao canal 0 a frequencia de 1000 Hz com resolucao de 10 bits.
-    ledcSetup(1, 5000, 8); 
-    
-    pinMode(25, OUTPUT); // SAIDA DIGITAL ENABLE LY (Ponte H)
-    pinMode(26, OUTPUT); // SAIDA DIGITAL ENABLE LY (Ponte H)
-    
-    // -----------------------------------------------------------------------------------
-  
+  // Rigth --------------------------------------------------------------
+  pinMode(27, OUTPUT);     // Saida PWM ENABLE RY (Ponte H)
+  ledcAttachPin(27, 0);    // Atribuimos o pino 27 ao canal 0
+  ledcSetup(0, 200000, 8); //Atribuimos ao canal 0 a frequencia de 200.000 Hz com resolucao de 8 bits.
+
+  pinMode(14, OUTPUT); // Saida digital direcao RY (Ponte H)
+  pinMode(12, OUTPUT); // Saida digital direcao RY (Ponte H)
+
+  // Left --------------------------------------------------------------
+  pinMode(33, OUTPUT);  // Saida PWM ENABLE LY (Ponte H)
+  ledcAttachPin(33, 1); //Atribuimos o pino 33 ao canal 1
+  ledcSetup(1, 5000, 8); //Atribuimos ao canal 1 a frequencia de 200.000 Hz com resolucao de 8 bits.
+
+  pinMode(25, OUTPUT); // Saida digital direcao LY (Ponte H)
+  pinMode(26, OUTPUT); // Saida digital direcao LY (Ponte H)
+
+  // -----------------------------------------------------------------------------------
 }
 
-void loop(){
+void loop() {
   waitIncommingConnection();
 }
 
-void waitIncommingConnection() //Função que espera alguém conectar, quando conecta começa  a fazer algo
+void waitIncommingConnection() // Função que espera alguém conectar, quando conecta começa  a fazer algo
 {
-  String inData         = "";    //dados de entrada
-  WiFiClient client = server.available(); //cria um objeto client
-    
-  if (client) //se deu certo na hora de criar o objeto client, entra no if
+  String inData         = "";    // Dados de entrada
+  WiFiClient client = server.available(); // Cria um objeto client
+
+  if (client) // Se deu certo na hora de criar o objeto client, entra no if
   {
-    while ( client.connected() ) //se houver cliente conectado, entra no while
-    {      
-      if ( client.available() ) //aqui é pra ver se está disponivel
-      { 
-        char recieved = client.read(); //se estiver, vai ler os dados na variavel indata
-        inData += recieved;   
+    while ( client.connected() ) // Se houver cliente conectado, entra no while
+    {
+      if ( client.available() ) // Aqui é pra ver se está disponivel
+      {
+        char recieved = client.read(); // Se estiver, vai ler os dados na variavel indata
+        inData += recieved;
         if (recieved == '\n')
-        { 
-          controleAnalogico(inData, 50, 0, 14, 12); // RY entrada, botao, canal, porta1, porta2
-          controleAnalogico(inData, 48, 1, 26, 25); // LY entrada, botao, canal, porta1, porta2
-          inData = ""; //aqui reinicializa a variavel indata para pegar o próximo comando
-        }        
+        {
+          controleAnalogico(inData, 50, 0, 14, 12); // RY protocol, joystick_button, channel_PWM, pin_in_a, pin_in_b
+          controleAnalogico(inData, 48, 1, 26, 25); // LY protocol, joystick_button, channel_PWM, pin_in_a, pin_in_b
+          inData = ""; // Aqui reinicializa a variavel indata para pegar o próximo comando
+        }
       }
     }
     client.stop();
-    Serial.println("Client Disconnected.");   
+    Serial.println("Client Disconnected.");
   }
 }
 
-void controleAnalogico(String entrada, int botao, int canal, int porta1, int porta2)
+void controleAnalogico(String protocol, int joystick_button, int channel_PWM, int pin_in_a, int pin_in_b)
 {
-  if (entrada[0] == botao )// ANALOGICO R Y inData[0] == 48 RECEBE DE 0.00 - 10
-  {                            
-    float val = (((entrada[2]-48)*10) + ((entrada[3]-48)*1)); // XX.00  0-10 tanto pra cima quanto pra baixo
-    float ptFr1 = (entrada[4]-48);
-    float ptFr2 = ((entrada[5]-48));
-    float valFra = ((ptFr1 / 10) + (ptFr2 /100));// 0.XX
+  if (protocol[0] == joystick_button )// ANALOGICO R Y inData[0] == 48 RECEBE DE 0.00 - 10
+  {
+    float val = (((protocol[2] - 48) * 10) + ((protocol[3] - 48) * 1)); // XX.00  0-10 tanto pra cima quanto pra baixo
+    float ptFr1 = (protocol[4] - 48);
+    float ptFr2 = ((protocol[5] - 48));
+    float valFra = ((ptFr1 / 10) + (ptFr2 / 100)); // 0.XX
     float resultPart = val + valFra;
-    float result = resultPart * 25.5;
-    
+    float value_PWM = resultPart * 25.5;
+
     // ANALOGICO R Y entrada[1] == 48 analogico pra cima, 49 analogico pra baixo
-    if (entrada[1] == 48 )
+    if (protocol[1] == 48 )
     {
-      ledcWrite(canal, result);
-      digitalWrite(porta1, LOW);
-      digitalWrite(porta2, HIGH);
-    }       
+      digitalWrite(pin_in_a, LOW);
+      digitalWrite(pin_in_b, HIGH);
+    }
     else
     {
-      ledcWrite(canal, result);
-      digitalWrite(porta1, HIGH);
-      digitalWrite(porta2, LOW);
-    }           
-  } 
+      digitalWrite(pin_in_a, HIGH);
+      digitalWrite(pin_in_b, LOW);
+    }
+    ledcWrite(channel_PWM, value_PWM);
+  }
 }
